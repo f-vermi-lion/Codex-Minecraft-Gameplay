@@ -39,13 +39,17 @@ python .\minecraft_control.py act --keys esc --seconds 0.08 --capture captures\p
 
 このリポジトリ、兄弟の `Codexs-obsidian-vault`、Minecraft、Codexのバックエンド機能だけを対象にする。デスクトップのブラウザ、Explorerによる他フォルダ探索、クリップボード、他の連携アプリを使わない。Minecraft設定も必要なゲーム内設定に留める。安全機構の無効化、無制限のPython／PowerShell実行の恒久許可、常駐の汎用操作サーバーは使わない。
 
-書庫の `AGENTS.md` に従う。毎回のキー入力を記録せず、節目・調査結果・終了時に `P文書/Minecraftエンドラ攻略.md` へ短く追記する。記録は「確認済みの事実／推測／次の一手」を区別し、現在地（分かれば座標・ディメンション）、体力・食料・装備、拠点・ポータル、残課題、ポーズ確認の有無を残す。
+書庫の `AGENTS.md` と、そこから案内される初期助言に従う。P文書は目的・方針の入口とし、リンク先の `Minecraft攻略の現在地.md` に再開情報を置く。節目・終了時には現在地を最新状態へ更新し、後で役立つ判断や調査結果だけ記録に残す。毎回の入力ログや定型項目の穴埋めは不要。必要な座標・装備・危険・次の一手・ポーズ確認を、事実と推測を区別して残す。既存ノートの更新前には必ず最新内容を読み、他の記録を保護する。
+
+継続目標の導線は書庫の `スケジュール.md` の「当面継続」からP文書へつなぐ。日時管理が必要になった場合だけ、スケジュールから案内されるカレンダーの運用を読む。プレイのたびに予定を作ったり、必要のないカレンダー接続や設定変更を行ったりしない。同一セッションで把握済みの案内は再読せず、再開時には現在地を読むところから進めてよい。
 
 ```powershell
 obsidian vault="Codexs-obsidian-vault" read path="AGENTS.md"
+obsidian vault="Codexs-obsidian-vault" read path="この書庫の使い方についてのユーザーからの初期の助言.md"
 obsidian vault="Codexs-obsidian-vault" read path="P文書/Minecraftエンドラ攻略.md"
-# contentは実際に確認した内容に置き換える。既存ノートをoverwriteしない。
-obsidian vault="Codexs-obsidian-vault" append path="P文書/Minecraftエンドラ攻略.md" content="確認済み: … / 未確認: … / 次の一手: …"
+obsidian vault="Codexs-obsidian-vault" read path="Minecraft攻略の現在地.md"
+# 後で役立つ記録を追加する例。現在地の更新は読み取った既存内容を保護して行う。
+obsidian vault="Codexs-obsidian-vault" append path="Minecraft攻略の現在地.md" content="判断・調査結果: …"
 ```
 
 CLIが接続できなければ記録内容をチャットに保留し、書庫の指示に反して別の更新経路を作らない。デスクトップ接続や権限が原因ならそのまま説明する。

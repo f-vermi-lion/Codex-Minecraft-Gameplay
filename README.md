@@ -14,7 +14,8 @@
 | `agents/skills/minecraft-gameplay/runtime/minecraft_control.py` | ウィンドウ検出、キャプチャ、最長5秒の入力、緊急停止 |
 | `agents/skills/minecraft-gameplay/runtime/minecraft_sequence.py` | 画像チェック付きの短い操作列（最大32手・30秒） |
 | `scripts/start_gameplay.py` | 作業場所・検索・権限を指定して専用Codexセッションを開始 |
-| `../Codexs-obsidian-vault/P文書/Minecraftエンドラ攻略.md` | 現在地、次の一手、調査結果を残す個人用ノート |
+| `../Codexs-obsidian-vault/P文書/Minecraftエンドラ攻略.md` | 目的と方針。書庫の「スケジュール → 当面継続」からたどる入口 |
+| `../Codexs-obsidian-vault/Minecraft攻略の現在地.md` | 最新の再開情報と、後で役立つ判断・調査の記録 |
 
 既存の操作コード・テスト・配布用スクリプトを再利用しています。変更は日本語運用の追加、専用起動、ゲーム外クリックの抑止です。元の著作権表示とApache-2.0ライセンスは保持しています。
 

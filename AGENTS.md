@@ -3,7 +3,7 @@
 ## このフォークの用途
 
 ユーザーへの応答・計画・記録は日本語。目的は **シングルプレイ、サバイバル、難易度ノーマルで、ポーズを使いながらエンダードラゴン討伐を目指す** こと。
-ゲームプレイ前に [日本語の運用方針](agents/skills/minecraft-gameplay/references/survival-ja.md) を読む。書庫は兄弟ディレクトリ `../Codexs-obsidian-vault`。その `AGENTS.md` と `P文書/Minecraftエンドラ攻略.md` を読み、現在地・次の一手・調査結果を引き継ぐ。過去の記録より新しいゲーム画面を優先する。
+ゲームプレイ前に [日本語の運用方針](agents/skills/minecraft-gameplay/references/survival-ja.md) を読む。書庫は兄弟ディレクトリ `../Codexs-obsidian-vault`。まずその `AGENTS.md` と案内されている初期助言を読み、書庫の運用を把握する。`P文書/Minecraftエンドラ攻略.md` から現在地ノートへ進み、次の一手を引き継ぐ。同じセッションで既読の案内を毎回読み直す必要はない。過去の記録より新しいゲーム画面を優先する。
 
 操作対象はこのリポジトリのゲーム操作用コードと生成物、指定書庫、Minecraft、Codexバックエンドの必要な機能のみ。ネット調査はCodexのWeb検索・取得を使い、デスクトップブラウザや無関係のアプリ・コネクター・個人ファイルを操作しない。ゲーム入力は同梱Pythonアダプターだけを使う。Obsidianは必ず `obsidian vault="Codexs-obsidian-vault" ...` と対象ノートの `path=` を指定する。書庫のプラグイン設定、任意コード実行、他Vaultには触れない。
 
