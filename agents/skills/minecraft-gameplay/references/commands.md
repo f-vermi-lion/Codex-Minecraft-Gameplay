@@ -84,6 +84,8 @@ Hold F8, change focus, or issue a persistent stop:
 
 The adapter checks window identity and focus, refuses conflicting physical key/button state, and uses a mutex to prevent overlapping actions. It releases inputs in cleanup and uses a separate watchdog as backup. Cleanup depends on Windows accepting the release events.
 
+This fork also checks that the pointer is inside the selected game client and over that window (or a child) before pressing a mouse button and during held-button motion. A pointer outside the client, on the title bar, or over another window stops the action. Releases still run on abort. These checks reduce accidental clicks; Windows input remains global and checks are not an isolation boundary.
+
 Commands emit JSON. Failures produce a nonzero exit status. A completed action describes input delivery, not game success. Save observations under `captures/`; paths and screen contents in generated output can identify the local user and are not release assets.
 
 The checked runner is documented in [sequences.md](sequences.md).

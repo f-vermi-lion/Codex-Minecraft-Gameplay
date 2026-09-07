@@ -71,6 +71,9 @@ class FakeBackend:
         if self.lose_focus_at is not None and self.clock.now >= self.lose_focus_at:
             raise control.ControlError('Minecraft lost focus')
 
+    def guard_pointer(self, target):
+        self.guard(target)
+
     def _input(self, kind, name, pressed):
         self.events.append((self.clock.now, kind, name, pressed))
         identity = (kind, name)
@@ -435,6 +438,71 @@ class MenuPointTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'cannot be combined'):
                 control.main()
         windows.return_value.choose.assert_not_called()
+
+
+class PointerGuardTests(unittest.TestCase):
+    def setUp(self):
+        self.backend = object.__new__(control.Windows)
+        self.backend.u = Mock()
+        self.backend.guard = Mock()
+        self.target = {'hwnd': 123, 'pid': 456}
+        self.backend.u.WindowFromPoint.return_value = 124
+        self.backend.u.GetAncestor.return_value = 123
+
+        def position(pointer):
+            pointer._obj.x, pointer._obj.y = 100, 100
+            return True
+
+        def rectangle(hwnd, pointer):
+            pointer._obj.right, pointer._obj.bottom = 1280, 720
+            return True
+
+        self.backend.u.GetCursorPos.side_effect = position
+        self.backend.u.GetClientRect.side_effect = rectangle
+        self.backend.u.ScreenToClient.return_value = True
+
+    def test_game_child_window_inside_client_is_allowed(self):
+        self.backend.guard_pointer(self.target)
+
+    def test_other_window_or_overlay_is_rejected(self):
+        self.backend.u.GetAncestor.return_value = 999
+        with self.assertRaisesRegex(control.ControlError, 'another window'):
+            self.backend.guard_pointer(self.target)
+
+    def test_title_bar_and_outside_client_are_rejected(self):
+        for x, y in ((100, -20), (-1, 100), (1280, 100), (100, 720)):
+            def position(pointer):
+                pointer._obj.x, pointer._obj.y = x, y
+                return True
+            self.backend.u.GetCursorPos.side_effect = position
+            with self.subTest(point=(x, y)), self.assertRaisesRegex(
+                    control.ControlError, 'outside the game client'):
+                self.backend.guard_pointer(self.target)
+
+    def test_unknown_pointer_position_is_rejected(self):
+        self.backend.u.GetCursorPos.side_effect = None
+        self.backend.u.GetCursorPos.return_value = False
+        with self.assertRaisesRegex(control.ControlError, 'locate the mouse'):
+            self.backend.guard_pointer(self.target)
+
+    def test_rejected_click_does_not_press_button_and_releases_keys(self):
+        clock = FakeClock()
+        backend = FakeBackend(clock)
+        backend.guard_pointer = Mock(side_effect=control.ControlError('Pointer outside'))
+        with self.assertRaisesRegex(control.ControlError, 'Pointer outside'):
+            control.perform(backend, self.target, ['shift'], ['left'], 0.1, clock=clock)
+        self.assertFalse(any(e[1] == 'button' for e in backend.events))
+        self.assertEqual(backend.held, set())
+
+    def test_pointer_leaving_during_hold_releases_button(self):
+        clock = FakeClock()
+        backend = FakeBackend(clock)
+        backend.guard_pointer = Mock(side_effect=[None, None, control.ControlError('Pointer outside')])
+        with self.assertRaisesRegex(control.ControlError, 'Pointer outside'):
+            control.perform(backend, self.target, [], ['left'], 0.5, clock=clock)
+        self.assertEqual(backend.held, set())
+        self.assertLess(clock.now, 0.5)
+        self.assertEqual([e[3] for e in backend.events if e[1] == 'button'], [True, False])
 
 
 class MotionStepsTests(unittest.TestCase):

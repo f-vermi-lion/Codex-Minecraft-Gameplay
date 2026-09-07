@@ -1,10 +1,12 @@
 ---
 name: minecraft-gameplay
-description: Play Minecraft on a local Windows desktop using screenshot observation, bounded keyboard and mouse input, and checked action sequences. Use for in-game movement, gathering, crafting, exploration, and building.
+description: Windows上のMinecraftを画面観察と短時間のキー・マウス入力でプレイする。日本語で相談・記録し、ポーズありのサバイバル／ノーマルでエンダードラゴン攻略、採集、クラフト、探索、建築を行うときに使う。
 license: Apache-2.0
 ---
 
 # Minecraft gameplay
+
+このフォークでは日本語で応答・記録する。プレイ前に [サバイバル攻略と操作範囲](references/survival-ja.md) を読み、指定Obsidian書庫から再開情報を得る。ネットはCodex内蔵Web機能を使う。調査・記録・長考・ユーザー待ちの前に実際のポーズ画面を確認する。入力終了やインベントリ表示だけをポーズ済みと見なさない。
 
 Use the Python adapter in `runtime/` beside this file. It requires Windows Python with Pillow and access to the interactive desktop containing Minecraft. A configured interpreter or `runtime/.venv/Scripts/python.exe` can run it. Resolve paths relative to this skill, not the shell's initial directory.
 

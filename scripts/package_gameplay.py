@@ -16,6 +16,7 @@ FILES = (
     SKILL + 'SKILL.md',
     SKILL + 'references/commands.md',
     SKILL + 'references/sequences.md',
+    SKILL + 'references/survival-ja.md',
     SKILL + 'runtime/minecraft_control.py',
     SKILL + 'runtime/minecraft_sequence.py',
     SKILL + 'runtime/test_minecraft_control.py',
@@ -23,6 +24,7 @@ FILES = (
     SKILL + 'runtime/requirements.txt',
     'scripts/package_gameplay.py',
     'scripts/setup_repository.py',
+    'scripts/start_gameplay.py',
 )
 
 

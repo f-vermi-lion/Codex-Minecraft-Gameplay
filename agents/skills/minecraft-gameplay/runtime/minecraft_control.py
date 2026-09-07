@@ -105,6 +105,10 @@ class Windows:
         self._bind(self.u, 'GetClientRect', [W.HWND, C.POINTER(W.RECT)], W.BOOL)
         self._bind(self.u, 'ClientToScreen', [W.HWND, C.POINTER(W.POINT)], W.BOOL)
         self._bind(self.u, 'SetCursorPos', [C.c_int, C.c_int], W.BOOL)
+        self._bind(self.u, 'GetCursorPos', [C.POINTER(W.POINT)], W.BOOL)
+        self._bind(self.u, 'ScreenToClient', [W.HWND, C.POINTER(W.POINT)], W.BOOL)
+        self._bind(self.u, 'WindowFromPoint', [W.POINT], W.HWND)
+        self._bind(self.u, 'GetAncestor', [W.HWND, W.UINT], W.HWND)
         self._bind(self.k, 'OpenProcess', [W.DWORD, W.BOOL, W.DWORD], W.HANDLE)
         self._bind(self.k, 'QueryFullProcessImageNameW', [W.HANDLE, W.DWORD, W.LPWSTR, C.POINTER(W.DWORD)], W.BOOL)
         self._bind(self.k, 'CloseHandle', [W.HANDLE], W.BOOL)
@@ -262,6 +266,22 @@ class Windows:
                 errors.append(str(exc))
         return errors
 
+    def guard_pointer(self, target):
+        """Refuse button input outside the game or through another window."""
+        self.guard(target)
+        point, rect = W.POINT(), W.RECT()
+        if not self.u.GetCursorPos(C.byref(point)):
+            raise ControlError('Unable to locate the mouse pointer.')
+        hit = self.u.WindowFromPoint(point)
+        if not hit or self.u.GetAncestor(hit, 2) != target['hwnd']:  # GA_ROOT
+            raise ControlError('Mouse pointer is over another window; no game click sent.')
+        if (not self.u.ScreenToClient(target['hwnd'], C.byref(point))
+                or not self.u.GetClientRect(target['hwnd'], C.byref(rect))):
+            raise ControlError('Unable to check the mouse pointer against the game client.')
+        if not (0 <= point.x < rect.right and 0 <= point.y < rect.bottom):
+            raise ControlError('Mouse pointer is outside the game client area.')
+        self.guard(target)
+
     def lock(self):
         handle = self.k.CreateMutexW(None, False, 'Local\\CodexMinecraftControl')
         if not handle:
@@ -313,6 +333,7 @@ def perform(backend, target, keys, buttons, seconds, dx=0, dy=0, clock=time, own
             backend.key(key, True)
         for index, button in enumerate(buttons, len(keys)):
             backend.guard(target)
+            backend.guard_pointer(target)
             held_buttons.append(button)
             if ownership is not None:
                 ownership[index] = 1
@@ -320,6 +341,8 @@ def perform(backend, target, keys, buttons, seconds, dx=0, dy=0, clock=time, own
         steps = max(1, math.ceil(seconds / 0.01))
         for i, (mx, my) in enumerate(motion_steps(dx, dy, steps), 1):
             backend.guard(target)
+            if buttons:
+                backend.guard_pointer(target)
             backend.move(mx, my)
             deadline = start + seconds * i / steps
             while clock.monotonic() < deadline:
