@@ -142,6 +142,24 @@ class ActionTests(unittest.TestCase):
         self.assertLess(moves[-1][0], 0.073)
         self.assertAlmostEqual(self.clock.now, 0.073)
 
+    def test_debug_profile_chord_releases_both_keys_on_completion_and_focus_loss(self):
+        for lose_focus_at in (None, 0.035):
+            with self.subTest(lose_focus_at=lose_focus_at):
+                clock = FakeClock()
+                backend = FakeBackend(clock, lose_focus_at=lose_focus_at)
+                if lose_focus_at is None:
+                    control.perform(backend, self.target, ['f3', 'f6'], [],
+                                    0.08, clock=clock)
+                else:
+                    with self.assertRaisesRegex(control.ControlError, 'lost focus'):
+                        control.perform(backend, self.target, ['f3', 'f6'], [],
+                                        0.08, clock=clock)
+                    self.assertLess(clock.now, 0.08)
+                self.assertEqual([e[1:] for e in backend.events if e[1] != 'move'],
+                                 [('key', 'f3', True), ('key', 'f6', True),
+                                  ('key', 'f6', False), ('key', 'f3', False)])
+                self.assertEqual(backend.held, set())
+
     def test_focus_loss_aborts_early_and_releases_every_held_input(self):
         self.backend.lose_focus_at = 0.035
         with self.assertRaisesRegex(control.ControlError, 'lost focus'):

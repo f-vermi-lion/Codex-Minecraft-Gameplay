@@ -47,10 +47,12 @@ Supported key names:
 
 ```text
 w a s d e q f t h space shift ctrl esc enter tab
-f3 f5 up down left right 1 2 3 4 5 6 7 8 9
+f3 f5 f6 up down left right 1 2 3 4 5 6 7 8 9
 ```
 
 Buttons: `left`, `right`, `middle`. Names assume matching in-game bindings; the adapter does not remap the user's controls. `F8` is the interrupt key. Individual actions do not inspect inventory, hazards, or item identity.
+
+画面上に `F3+F6` の案内が出ている場合は、`--keys f3 f6` でデバッグ表示の設定を開ける。操作後は実際の画面を確認する。F6も通常のキーと同じ停止・前面確認・キー解放処理を通る。
 
 ## Menu coordinates
 
