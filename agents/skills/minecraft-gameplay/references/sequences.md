@@ -62,7 +62,7 @@ After inspecting the current game and confirming the plan's assumptions, execute
 | `version` | Must be `1`. |
 | `name` | Optional label. |
 | `client_size` | Native `[width, height]`; integers from 1 to 7680. Every reference must have this exact size. |
-| `max_seconds` | Execution budget from 1 to 30 seconds; defaults to 20. Leave room for checks and settling. |
+| `max_seconds` | Wall-clock budget from 1 to 30 seconds; defaults to 20. Include capture, comparisons, settling, and the final pause, not just held-input time. |
 | `checks` | Named visual checks. Each needs an image, regions, and optional mode/threshold. |
 | `start_check` | A loaded check that must pass before any input. |
 | `steps` | One to 32 expanded steps. Unknown fields are rejected. |
@@ -106,5 +106,7 @@ Do not increase error thresholds merely to pass a mismatch. Inspect whether the 
 ## Failure and recovery
 
 The runner writes a report and attempts a final capture while focus and stop conditions permit it. A stopped step may already have sent some or all of its input. Read `status`, `completed_steps`, `stopped_at`, and each step's `input_completed` together with a fresh screenshot.
+
+A timeout can leave a stop file and cancel the final pause. It does not by itself indicate a user interruption or require fresh permission. Follow [中断・エラーからの復旧](survival-ja.md#中断エラーからの復旧) to inspect and recover the foreground game. When planning the next batch, allow time for observed capture and comparison overhead within the existing 30-second limit.
 
 Continue from current game and cursor state. Replaying a failed craft or resource-consuming prefix can duplicate actions or spend different ingredients. A report marked `complete` means the configured input/check sequence completed; inspect the game to establish the user's outcome.

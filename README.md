@@ -62,6 +62,7 @@ python scripts/start_gameplay.py
 - 永続停止: runtimeで `python minecraft_control.py stop`。
 - `stop`やF8はゲーム自体をポーズしません。必要なら手動でEscを押してください。
 - ユーザーが中断した後は、再開指示まで自動再開しません。
+- 操作列の時間切れなどのエラー後は、対象のMinecraftが前面で正常に動作していることを確認して自律的に復旧します。時間切れだけを理由に、ユーザーの再開指示や手動ポーズを必須にはしません。
 
 詳細は [日本語の運用方針](agents/skills/minecraft-gameplay/references/survival-ja.md)、コマンドは [commands](agents/skills/minecraft-gameplay/references/commands.md)、操作列は [sequences](agents/skills/minecraft-gameplay/references/sequences.md) を参照してください。
 

@@ -80,9 +80,11 @@ Hold F8, change focus, or issue a persistent stop:
 
 ```powershell
 & $mcPython .\minecraft_control.py stop
-# After inspecting the interruption and deciding to continue:
+# For a confirmed runtime timeout after checking the target and foreground state:
 & $mcPython .\minecraft_control.py reset-stop
 ```
+
+A stop file alone does not identify a user interruption: a sequence watchdog can also create it after a timeout. Follow [中断・エラーからの復旧](survival-ja.md#中断エラーからの復旧) to distinguish intentional user stops from runtime errors. For a confirmed timeout, no additional permission is needed to clear the flag and inspect the foreground game; inspect a fresh screenshot before sending gameplay input.
 
 The adapter checks window identity and focus, refuses conflicting physical key/button state, and uses a mutex to prevent overlapping actions. It releases inputs in cleanup and uses a separate watchdog as backup. Cleanup depends on Windows accepting the release events.
 
