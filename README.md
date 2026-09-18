@@ -17,7 +17,7 @@ Codexが画面を観察し、Windowsのキー・マウス入力でMinecraftを�
 | `runtime/minecraft_control.py` | 既存単発CLIの互換入口 |
 | `runtime/minecraft_sequence.py` | 必要な場合だけ使う画像チェック付き操作列 |
 | `runtime/AGENTS.md` | runtime変更時に守る不変条件 |
-| `scripts/start_gameplay.py` | リポジトリ限定権限でCodexを起動 |
+| `scripts/start_gameplay.py` | 共通の親ディレクトリを作業ルートとしてCodexを起動 |
 
 エージェントは必要に応じて、skill、指示、操作、観察、画像分析、計画、記録用ツールを変更・追加できます。安全性は特定の実装を変更禁止にするのではなく、`input_boundary.py` の性質とモックテストで維持します。
 
@@ -25,8 +25,17 @@ Codexが画面を観察し、Windowsのキー・マウス入力でMinecraftを�
 
 必要なものはWindows Python、Pillow、Codex CLI、Minecraftです。Java版の通常のシングルプレイを想定します。
 
-1. Minecraftを通常権限で起動し、チートなし・サバイバル・ノーマルのシングルプレイワールドに入ります。
-2. リポジトリのルートでセットアップし、モックテストを実行します。
+1. 次のように、共通の親ディレクトリへこのリポジトリ、書庫、共通 `AGENTS.md` を置きます。
+
+```text
+<workspace>/
+├── AGENTS.md
+├── Codex-Minecraft-Gameplay/
+└── Codexs-obsidian-vault/
+```
+
+2. Minecraftを通常権限で起動し、チートなし・サバイバル・ノーマルのシングルプレイワールドに入ります。
+3. リポジトリのルートでセットアップし、モックテストを実行します。
 
 ```powershell
 Set-Location D:\Codex\Codex-Minecraft-Gameplay
@@ -37,7 +46,7 @@ py -3 -m unittest -q
 Pop-Location
 ```
 
-3. 専用Codexセッションを開始します。
+4. 専用Codexセッションを開始します。スクリプトは共通の親ディレクトリを作業ディレクトリにします。
 
 ```powershell
 python scripts/start_gameplay.py
@@ -64,7 +73,9 @@ with Minecraft(focus=True) as game:
 
 ## 安全境界
 
-専用起動は `workspace-write` を使い、追加の書き込み先を与えません。シェル側のネットワークは無効のまま、CodexのWeb検索だけを有効にします。プレイ状態、キャプチャ、計画、報告はリポジトリ内のignore対象へ置きます。
+専用起動は共通の親ディレクトリを `workspace-write` の作業ルートにし、継承された追加の書き込み先を消します。親 `AGENTS.md` は、通常の作業対象をこのリポジトリと `Codexs-obsidian-vault` に限定し、対象に応じて子の `AGENTS.md` へ案内します。親へ別の子ディレクトリを追加する場合は、作業範囲を改めて確認してください。シェル側のネットワークは無効のまま、CodexのWeb検索だけを有効にします。
+
+一時的なキャプチャ、計画、報告はこのリポジトリ内のignore対象へ置けます。セッションをまたぐ目的・状況・判断は書庫を利用できますが、単一ノートや固定形式を強制しません。
 
 実デスクトップへ接続するため、起動時だけ `windows.sandbox_private_desktop=false` を指定します。ファイルとネットワークのサンドボックスは維持されます。
 
