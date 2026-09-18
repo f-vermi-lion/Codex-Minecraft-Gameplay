@@ -4,11 +4,10 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# Generated game observations, state, and user-authored plans
+# Generated game observations and user-authored plans
 captures/
 plans/
 reports/
-local-state/
 .minecraft-control-stop
 local-config.json
 
