@@ -4,10 +4,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# Generated game observations and user-authored plans
+# Generated game observations, state, and user-authored plans
 captures/
 plans/
 reports/
+local-state/
 .minecraft-control-stop
 local-config.json
 
@@ -20,6 +21,5 @@ builds/
 *.zip.sha256
 MANIFEST.sha256.json
 
-# Generated local Codex registration and ignore rules
-/.agents/
+# Generated local ignore rules
 /.gitignore

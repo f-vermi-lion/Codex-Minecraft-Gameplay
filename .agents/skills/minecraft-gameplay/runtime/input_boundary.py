@@ -1,7 +1,7 @@
 # Copyright 2026 Wuyang Zhou and Tianyu Wei
 # SPDX-License-Identifier: Apache-2.0
 
-"""Bounded Windows input adapter for a foreground Minecraft game. Python 3.8+."""
+"""Enforce the OS-input boundary around one foreground Minecraft game. Python 3.8+."""
 import argparse
 import ctypes as C
 from ctypes import wintypes as W
@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parent
 STOP_FILE = ROOT / '.minecraft-control-stop'
 MAX_SECONDS = 5.0
+MAX_MOUSE_DELTA = 2000
 # Physical PC scan codes; extended keys are marked separately.
 KEYS = {
     'w': (0x11, 0x57, False), 'a': (0x1e, 0x41, False),
@@ -71,8 +72,9 @@ def validate_action(keys, buttons, seconds, dx, dy):
         raise ValueError('Keys must be unique supported names: ' + ', '.join(KEYS))
     if len(set(buttons)) != len(buttons) or any(b not in BUTTONS for b in buttons):
         raise ValueError('Buttons must be unique: left, right, middle.')
-    if any(isinstance(v, bool) or not isinstance(v, int) or abs(v) > 2000 for v in (dx, dy)):
-        raise ValueError('Relative mouse totals must be integers from -2000 to 2000.')
+    if any(isinstance(v, bool) or not isinstance(v, int) or abs(v) > MAX_MOUSE_DELTA for v in (dx, dy)):
+        raise ValueError('Relative mouse totals must be integers from -%d to %d.'
+                         % (MAX_MOUSE_DELTA, MAX_MOUSE_DELTA))
 
 
 def motion_steps(dx, dy, count):

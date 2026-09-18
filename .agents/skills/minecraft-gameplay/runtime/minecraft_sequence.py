@@ -1,7 +1,7 @@
 # Copyright 2026 Wuyang Zhou and Tianyu Wei
 # SPDX-License-Identifier: Apache-2.0
 
-"""Run a bounded Minecraft action plan with local visual checkpoints. Python 3.8+."""
+"""Run a Minecraft action plan with local visual checkpoints. Python 3.8+."""
 import argparse
 import json
 import math
@@ -10,10 +10,7 @@ from pathlib import Path
 import sys
 import time
 
-import minecraft_control as mc
-
-MAX_STEPS = 32
-MAX_WALL_SECONDS = 30.0
+import input_boundary as mc
 COMPARISON_MODES = ('pixels', 'bright_text', 'red_pixels')
 
 
@@ -41,7 +38,10 @@ def prepare(plan, base):
     if (not isinstance(size, list) or len(size) != 2
             or any(type(v) is not int or not 1 <= v <= 7680 for v in size)):
         raise ValueError('client_size must be [native_width, native_height].')
-    budget = number(plan.get('max_seconds', 20), 1, MAX_WALL_SECONDS, 'max_seconds')
+    budget = plan.get('max_seconds', 60)
+    if (isinstance(budget, bool) or not isinstance(budget, (int, float))
+            or not math.isfinite(budget) or budget <= 0):
+        raise ValueError('max_seconds must be a positive finite number.')
     checks = {}
     raw_checks = plan.get('checks', {})
     if not isinstance(raw_checks, dict):
@@ -71,8 +71,8 @@ def prepare(plan, base):
     if start not in checks:
         raise ValueError('start_check must name a loaded visual check.')
     raw_steps = plan.get('steps')
-    if not isinstance(raw_steps, list) or not 1 <= len(raw_steps) <= MAX_STEPS:
-        raise ValueError('A sequence requires 1–32 steps.')
+    if not isinstance(raw_steps, list) or not raw_steps:
+        raise ValueError('A sequence requires at least one step.')
     steps, planned = [], 0.0
     allowed = {'label', 'keys', 'buttons', 'seconds', 'dx', 'dy', 'at', 'settle',
                'expect_before', 'expect_after', 'repeat', 'watch', 'progress'}
@@ -105,8 +105,8 @@ def prepare(plan, base):
             if field in step and step[field] not in checks:
                 raise ValueError('Unknown visual check in step %d.' % index)
         repeat = step.pop('repeat', 1)
-        if type(repeat) is not int or not 1 <= repeat <= 16:
-            raise ValueError('repeat must be an integer from 1 to 16.')
+        if type(repeat) is not int or repeat < 1:
+            raise ValueError('repeat must be a positive integer.')
         watch = step.get('watch', [])
         if (not isinstance(watch, list) or len(watch) > 8
                 or any(not isinstance(name, str) or name not in checks for name in watch)):
@@ -132,22 +132,14 @@ def prepare(plan, base):
         # A point click must be tied to a confirmed layout, not just window focus.
         if point is not None and 'expect_before' not in step:
             raise ValueError('Menu point steps require expect_before.')
-        if repeat > 1 and (point is not None or step['dx'] or step['dy']):
-            raise ValueError('Repeated steps must keep a fixed aim and cannot use menu points.')
-        if repeat > 1 and progress is None:
-            raise ValueError('Repeated steps require a progress check for every repetition.')
         planned += repeat * (step['seconds'] + step['settle'] + (0.05 if point is not None else 0))
         for repetition in range(repeat):
             expanded = dict(step)
             if repeat > 1:
                 expanded['label'] = '%s (%d/%d)' % (step['label'], repetition + 1, repeat)
             steps.append(expanded)
-        if len(steps) > MAX_STEPS:
-            raise ValueError('Expanded sequence exceeds 32 steps.')
     if planned >= budget:
         raise ValueError('Planned input time leaves no room within max_seconds.')
-    if 'expect_after' not in steps[-1]:
-        raise ValueError('The final step needs expect_after to verify its ending state.')
     return {'name': plan.get('name', 'sequence'), 'client_size': size, 'checks': checks,
             'start_check': start, 'steps': steps, 'max_seconds': budget,
             'planned_seconds': round(planned, 3)}

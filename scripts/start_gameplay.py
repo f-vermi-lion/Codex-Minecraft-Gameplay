@@ -9,25 +9,21 @@ import sys
 
 def launch_arguments():
     root = Path(__file__).resolve().parents[1]
-    vault = root.parent / 'Codexs-obsidian-vault'
-    if not (vault / 'AGENTS.md').is_file():
-        raise ValueError('Expected the sibling Codexs-obsidian-vault with AGENTS.md.')
     codex = shutil.which('codex.exe')
     if not codex:
         raise ValueError('codex.exe was not found on PATH. Use a Windows Codex CLI installation.')
-    # Replace inherited extra writable roots, then add only the designated vault.
-    # Shared-desktop compatibility is needed for game input; keep the sandbox on.
+    # Shared-desktop compatibility is needed for game input; keep file and network
+    # boundaries on and grant no writable directory outside this repository.
     return [
         codex, '--cd', str(root),
         '--sandbox', 'workspace-write', '--ask-for-approval', 'on-request', '--search',
         '--config', 'sandbox_workspace_write.writable_roots=[]',
-        '--add-dir', str(vault.resolve()),
         '--config', 'sandbox_workspace_write.network_access=false',
         '--config', 'windows.sandbox_private_desktop=false',
-        'Read AGENTS.md and the Minecraft gameplay skill. Respond in Japanese. '
-        'Read the designated Obsidian vault note. Observe Minecraft before input; '
-        'aim for the Ender Dragon in singleplayer Survival Normal with verified pauses. '
-        'Stop and report if ordinary desktop access is unavailable.',
+        'Read AGENTS.md and use the Minecraft gameplay skill. Respond in Japanese. '
+        'Observe Minecraft, then autonomously pursue the requested in-game goal within '
+        'the repository, GUI, and game-rule boundaries. Improve the repository tools '
+        'when useful. Stop and report if ordinary desktop access is unavailable.',
     ]
 
 

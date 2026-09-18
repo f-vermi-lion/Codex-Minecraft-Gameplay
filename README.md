@@ -1,87 +1,98 @@
-# Codex Minecraft Gameplay — 日本語サバイバル用フォーク
+# Codex Minecraft Gameplay — Astra向け日本語サバイバル環境
 
-**Codexが画面を見て判断し、Windowsのキー・マウス入力でMinecraftを操作する道具**です。Minecraft本体、AIモデル、ワールド、自動攻略ボットは含みません。ゲームメモリは読まず、スクリーンショットと通常の操作を使います。
+Codexが画面を観察し、Windowsのキー・マウス入力でMinecraftを操作するためのリポジトリです。Minecraft本体、AIモデル、ワールド、自動攻略ボットは含みません。ゲームメモリではなく、スクリーンショットと通常の入力を使います。
 
-このフォークは、日本語で相談・ネット調査・Obsidianへの記録をしながら、**ポーズあり／シングルプレイ／サバイバル／ノーマルでエンダードラゴン討伐を目指す**運用にしています。攻略成功や完全自動化を保証するものではありません。
+設計方針は、**Minecraft外とリポジトリ外への作用を低層で防ぎ、その内側ではエージェントが攻略・分析・ツール改良を自律的に行う**ことです。シングルプレイ／サバイバル／ノーマルでエンダードラゴン討伐を目指します。
 
-## 全体の構成
+## 構成
 
 | 場所 | 役割 |
 | --- | --- |
-| `AGENTS.md` | Codex向けの入口と操作対象の制限 |
-| `agents/skills/minecraft-gameplay/SKILL.md` | 画面観察→短い操作→確認という基本手順 |
-| `agents/skills/minecraft-gameplay/references/survival-ja.md` | 日本語・ポーズ・攻略段階・書庫への引き継ぎ |
-| `agents/skills/minecraft-gameplay/runtime/minecraft_control.py` | ウィンドウ検出、キャプチャ、最長5秒の入力、緊急停止 |
-| `agents/skills/minecraft-gameplay/runtime/minecraft_sequence.py` | 画像チェック付きの短い操作列（最大32手・30秒） |
-| `scripts/start_gameplay.py` | 作業場所・検索・権限を指定して専用Codexセッションを開始 |
-| `../Codexs-obsidian-vault/P文書/Minecraftエンドラ攻略.md` | 目的と方針。書庫の「スケジュール → 当面継続」からたどる入口 |
-| `../Codexs-obsidian-vault/Minecraft攻略の現在地.md` | 最新の再開情報と、後で役立つ判断・調査の記録 |
+| `AGENTS.md` | 目的、外部境界、境界内の裁量 |
+| `.agents/skills/minecraft-gameplay/SKILL.md` | Minecraft能力の短い入口 |
+| `references/game-rules.md` | 守るゲームルール |
+| `references/runtime-api.md` | Astra向けコード実行API |
+| `runtime/input_boundary.py` | Minecraft限定のWin32入力境界 |
+| `runtime/minecraft.py` | ループ・条件分岐・画像分析から使う高層API |
+| `runtime/minecraft_control.py` | 既存単発CLIの互換入口 |
+| `runtime/minecraft_sequence.py` | 必要な場合だけ使う画像チェック付き操作列 |
+| `runtime/AGENTS.md` | runtime変更時に守る不変条件 |
+| `scripts/start_gameplay.py` | リポジトリ限定権限でCodexを起動 |
 
-既存の操作コード・テスト・配布用スクリプトを再利用しています。変更は日本語運用の追加、専用起動、ゲーム外クリックの抑止です。元の著作権表示とApache-2.0ライセンスは保持しています。
+エージェントは必要に応じて、skill、指示、操作、観察、画像分析、計画、記録用ツールを変更・追加できます。安全性は特定の実装を変更禁止にするのではなく、`input_boundary.py` の性質とモックテストで維持します。
 
-## Quick start / 最初の準備
+## Quick start
 
-Windows PythonとPillow、Codex CLI、Minecraft、Obsidian CLIを使います。Java版の通常のシングルプレイを想定します。既存のPythonにPillowがあれば再インストール不要です。
+必要なものはWindows Python、Pillow、Codex CLI、Minecraftです。Java版の通常のシングルプレイを想定します。
 
-1. このリポジトリと `Codexs-obsidian-vault` を同じ親フォルダに置きます。このPCでは `D:\Codex` です。
-2. Minecraftを通常権限で起動し、チートなし・サバイバル・ノーマルのシングルプレイワールドに入り、Escでポーズします。LANには公開しません。既存ワールドは削除しません。
-3. Obsidianで `Codexs-obsidian-vault` を開き、設定→一般のCLIを有効にします。別のアプリがゲーム画面を覆わないようにします。
-4. 初回だけ、リポジトリのルートでセットアップとテストを行います。
+1. Minecraftを通常権限で起動し、チートなし・サバイバル・ノーマルのシングルプレイワールドに入ります。
+2. リポジトリのルートでセットアップし、モックテストを実行します。
 
 ```powershell
 Set-Location D:\Codex\Codex-Minecraft-Gameplay
 py -3 scripts/setup_repository.py
-Push-Location agents/skills/minecraft-gameplay/runtime
-python -m unittest -q
+Push-Location .agents/skills/minecraft-gameplay/runtime
+py -3 -m pip install -r requirements.txt
+py -3 -m unittest -q
 Pop-Location
 ```
 
-5. ゲーム用の新しいCodexセッションを起動します。
+3. 専用Codexセッションを開始します。
 
 ```powershell
 python scripts/start_gameplay.py
 ```
 
-起動引数を確認するだけなら `python scripts/start_gameplay.py --check` を使えます。組織設定などで拒否される場合は、ポリシーを変更して回避せず原因を確認してください。
+`python scripts/start_gameplay.py --check` で起動引数だけ確認できます。
 
-起動後、Codexは書庫の記録を読み、`status` と新しいゲーム画像から現在の状態を確認します。まだ記録ノートがない別環境では、指定書庫内に攻略用ノートを作成します。最初は短い移動・視点変更で操作感を確かめます。現在開いているCodexの会話には起動引数の設定は遡って適用されません。
+## コード実行型の操作
 
-## 操作範囲を狭める仕組みと限界
+主役は構造化された単発アクションではなく、`minecraft.py` を使うPythonコードです。
 
-専用起動は `workspace-write` と `on-request` を使い、リポジトリを作業場所、指定書庫を追加の書き込み先にします。継承された追加書き込み先リストを空にしてから書庫だけを追加します。ネットはCodexの内蔵Web検索を有効にし、シェル側のネット許可は無効にします。グローバル設定は書き換えません。
+```python
+from minecraft import Minecraft
 
-画面操作には実際のデスクトップへの接続が必要なので、公式の互換設定 `windows.sandbox_private_desktop=false` をこの起動だけ指定します。**ファイル・ネットワークのサンドボックスは維持しますが、GUIの隔離は弱くなります。** 管理設定などがこれを拒む場合や、それでもゲーム・Obsidianに接続できない場合は停止して説明します。Full accessや独自の操作ブリッジには切り替えません。[公式Windows資料](https://learn.chatgpt.com/docs/windows/windows-sandbox)、[設定リファレンス](https://learn.chatgpt.com/docs/config-file/config-reference)
-
-ゲーム入力にはウィンドウ・プロセスの確認、前面確認、時間上限、ゲーム外クリック抑止、キー解放、watchdogが働きます。Codexの指示でも無関係のファイル・アプリ・連携ツールに触れないよう制限しています。ただし、**この構成は読み取り先や全ツールを完全に隔離する許可リストではありません**。Windows入力はグローバルであり、判定と送信の隙間も残ります。不要なアプリを閉じ、ゲームを単独で見える状態にすると誤操作の機会を減らせます。追加の恒久許可を求められたら、汎用Python／PowerShell全体を許可する形にはしません。
-
-## ポーズと中断
-
-調査・長考・記録・返答待ちの前にポーズメニューを確認します。インベントリを開いただけ、キーを離しただけではポーズになりません。Escは状態によって再開にもなるため、画面確認なしの自動連打はしません。Bedrock版やMOD環境でポーズが効くか不明なら、版を確認してから進めます。
-
-- `F8`を押し続ける、またはゲームからフォーカスを外すと入力を中断できます。
-- 永続停止: runtimeで `python minecraft_control.py stop`。
-- `stop`やF8はゲーム自体をポーズしません。必要なら手動でEscを押してください。
-- ユーザーが中断した後は、再開指示まで自動再開しません。
-- 操作列の時間切れなどのエラー後は、対象のMinecraftが前面で正常に動作していることを確認して自律的に復旧します。時間切れだけを理由に、ユーザーの再開指示や手動ポーズを必須にはしません。
-
-詳細は [日本語の運用方針](agents/skills/minecraft-gameplay/references/survival-ja.md)、コマンドは [commands](agents/skills/minecraft-gameplay/references/commands.md)、操作列は [sequences](agents/skills/minecraft-gameplay/references/sequences.md) を参照してください。
-
-## Manual setup / 不足している場合
-
-Python環境がなければ先にWindows用Pythonを用意します。Pillowだけが不足している場合はruntime内で仮想環境を作ります。
-
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m unittest -q
+with Minecraft(focus=True) as game:
+    image = game.frame()
+    game.hold(keys=("w",), seconds=8)
+    result = game.frame()
 ```
 
-以後のゲーム操作もそのPythonを使います。Obsidian CLIの接続にはObsidian本体が必要です。[公式CLI手順](https://obsidian.md/help/cli)
+`hold` は長い論理操作を、低層の短い安全leaseへ自動分割します。総手数や総操作時間には固定上限を置きません。Python側で観察、条件分岐、ループ、画像処理を構成できます。詳しくは [runtime API](.agents/skills/minecraft-gameplay/references/runtime-api.md) を参照してください。
 
-`Unable to enumerate game windows` は実行環境の問題として扱い、「ゲームが閉じている」と判断しません。`games: []` はその実行環境で候補が見つからないという結果です。まずMinecraftのゲーム画面が起動済みか確認します。デスクトップアクセスが不足している場合はその旨を報告します。
+単発診断には [controller CLI](.agents/skills/minecraft-gameplay/references/commands.md)、宣言的な画像チェックが役立つ場合には [sequence runner](.agents/skills/minecraft-gameplay/references/sequences.md) も使えます。
+
+## 安全境界
+
+専用起動は `workspace-write` を使い、追加の書き込み先を与えません。シェル側のネットワークは無効のまま、CodexのWeb検索だけを有効にします。プレイ状態、キャプチャ、計画、報告はリポジトリ内のignore対象へ置きます。
+
+実デスクトップへ接続するため、起動時だけ `windows.sandbox_private_desktop=false` を指定します。ファイルとネットワークのサンドボックスは維持されます。
+
+低層入力境界は次を強制します。
+
+- Minecraftのタイトル、実行プロセス、HWND、PIDを照合
+- 前面状態と最小化状態を入力中も継続確認
+- Minecraftクライアント外や他ウィンドウ上のクリックを拒否
+- F8、stopファイル、フォーカス喪失で停止
+- 例外時のキー・ボタン解放と独立watchdog
+- mutexによる単一入力所有者
+
+Windows入力には検査と送信の間の競合があり、完全なOS隔離ではありません。Minecraft以外のウィンドウを重ねないことが、誤操作の機会をさらに減らします。
+
+## 中断
+
+- F8を押し続けるか、Minecraftからフォーカスを外すと現在の入力を中断できます。
+- 永続停止はruntimeで `python minecraft_control.py stop`。
+- `stop` は入力を止めますが、ゲーム自体をポーズしません。
+- ユーザーによる意図的中断後は、再開指示までフォーカスを奪い返しません。
+- watchdog由来の停止は、状態を確認したうえで `reset-stop` し、自律復旧できます。
 
 ## 開発・配布
 
-入力動作を変更したらruntimeで `python -m unittest -q` を実行します。実ゲームを操作しないモックテストです。スキルのメタデータを変更したら `py -3 scripts/setup_repository.py` を再実行します。
+runtime変更後は、同ディレクトリで次を実行します。
 
-配布ZIPは `python scripts/package_gameplay.py` で作成します。明示したソースのみを含み、書庫・画像・個人用計画・設定は含めません。手動でブラウザへフォルダをアップロードする場合、Gitのignoreでは個人ファイルを除外できない点に注意してください。
+```powershell
+python -m unittest -q
+```
+
+skillはCodex標準位置の `.agents/skills/minecraft-gameplay` が正本であり、登録用コピーは生成しません。配布ZIPは `python scripts/package_gameplay.py` で作成し、明示allowlistのソースだけを含めます。

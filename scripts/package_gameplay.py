@@ -10,16 +10,21 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = 'agents/skills/minecraft-gameplay/'
+SKILL = '.agents/skills/minecraft-gameplay/'
 FILES = (
     'README.md', 'AGENTS.md', 'LICENSE', 'NOTICE', 'gitignore.template',
     SKILL + 'SKILL.md',
+    SKILL + 'references/game-rules.md',
+    SKILL + 'references/runtime-api.md',
     SKILL + 'references/commands.md',
     SKILL + 'references/sequences.md',
-    SKILL + 'references/survival-ja.md',
+    SKILL + 'runtime/AGENTS.md',
+    SKILL + 'runtime/input_boundary.py',
+    SKILL + 'runtime/minecraft.py',
     SKILL + 'runtime/minecraft_control.py',
     SKILL + 'runtime/minecraft_sequence.py',
-    SKILL + 'runtime/test_minecraft_control.py',
+    SKILL + 'runtime/test_input_boundary.py',
+    SKILL + 'runtime/test_minecraft.py',
     SKILL + 'runtime/test_minecraft_sequence.py',
     SKILL + 'runtime/requirements.txt',
     'scripts/package_gameplay.py',

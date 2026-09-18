@@ -1,6 +1,6 @@
-# Checked action sequences
+# Optional checked action sequences
 
-The sequence runner validates a JSON plan, loads its reference images, and executes a bounded series of inputs with local visual comparisons. Create plans from the current screen and objective. References must match the native game-client dimensions and UI layout.
+The sequence runner validates a JSON plan, loads its reference images, and executes inputs with local visual comparisons. Use it when a declarative, reproducible checkpoint plan is more useful than the main code-execution API. References must match the native game-client dimensions and UI layout.
 
 ## Start with your own reference
 
@@ -62,10 +62,10 @@ After inspecting the current game and confirming the plan's assumptions, execute
 | `version` | Must be `1`. |
 | `name` | Optional label. |
 | `client_size` | Native `[width, height]`; integers from 1 to 7680. Every reference must have this exact size. |
-| `max_seconds` | Wall-clock budget from 1 to 30 seconds; defaults to 20. Include capture, comparisons, settling, and the final pause, not just held-input time. |
+| `max_seconds` | Positive finite wall-clock budget; defaults to 60 seconds. Include comparisons and settling, not just held-input time. |
 | `checks` | Named visual checks. Each needs an image, regions, and optional mode/threshold. |
 | `start_check` | A loaded check that must pass before any input. |
-| `steps` | One to 32 expanded steps. Unknown fields are rejected. |
+| `steps` | One or more steps. Unknown fields are rejected. |
 
 Each check accepts 1–16 regions. Rectangles are `[left, top, right, bottom]`, with exclusive right/bottom edges, contained within the native image. `max_mean_error` is between 0 and 30 and defaults to 8. All regions must meet that maximum mean pixel error.
 
@@ -88,7 +88,7 @@ Modes:
 | `expect_before` | Named check required before this input. |
 | `expect_after` | Named check after settling; required on the final step. |
 | `watch` | Up to eight named checks sampled during the hold. |
-| `repeat` | One to 16 repetitions, expanded within the 32-step limit. Requires fixed aim, no menu point, and a `progress` check when greater than one. |
+| `repeat` | A positive number of repetitions. Repeated point or camera actions remain subject to their ordinary per-action checks. |
 | `progress` | Compares before/after regions for a minimum amount of change; requires `regions` and `min_mean_error`, with optional `mode`. |
 
 `progress.min_mean_error` is between 0.01 and 255. A progress check passes if at least one selected region changes by that amount. Pick a region that distinguishes useful movement or resource change from animation. Passing progress alone does not prove the desired effect.
@@ -99,7 +99,7 @@ Watches sample approximately every 0.25 seconds plus image-processing time. Afte
 
 Use distinct references for distinct menu types and transitions. A common panel border may look identical in multiple menus. Require the appropriate menu before a coordinate action, and verify the actual output through inventory inspection.
 
-A movement batch can watch a stable HUD region and compare progress between short chunks, but the agent still needs to inspect the route and stopping point. Tool breakage, terrain hazards, and newly exposed material may require ending the batch and observing again.
+A movement batch can watch a stable HUD region and compare progress between chunks. Choose observation intervals from the actual risk and uncertainty rather than a fixed global duration.
 
 Do not increase error thresholds merely to pass a mismatch. Inspect whether the view, selected item, dimensions, cursor, or tooltip changed. Rebuild reference crops when the GUI scale or layout changes.
 
@@ -107,6 +107,6 @@ Do not increase error thresholds merely to pass a mismatch. Inspect whether the 
 
 The runner writes a report and attempts a final capture while focus and stop conditions permit it. A stopped step may already have sent some or all of its input. Read `status`, `completed_steps`, `stopped_at`, and each step's `input_completed` together with a fresh screenshot.
 
-A timeout can leave a stop file and cancel the final pause. It does not by itself indicate a user interruption or require fresh permission. Follow [中断・エラーからの復旧](survival-ja.md#中断エラーからの復旧) to inspect and recover the foreground game. When planning the next batch, allow time for observed capture and comparison overhead within the existing 30-second limit.
+A timeout can leave a stop file. It does not by itself indicate a user interruption or require fresh permission. Inspect the report and current foreground game, then recover from the observed state.
 
 Continue from current game and cursor state. Replaying a failed craft or resource-consuming prefix can duplicate actions or spend different ingredients. A report marked `complete` means the configured input/check sequence completed; inspect the game to establish the user's outcome.
