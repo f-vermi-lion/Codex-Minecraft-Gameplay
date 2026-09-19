@@ -9,9 +9,9 @@ import unittest
 from unittest.mock import Mock
 
 from PIL import Image
-import minecraft_control as mc
+import input_boundary as mc
 import minecraft_sequence as seq
-from test_minecraft_control import FakeBackend, FakeClock
+from test_input_boundary import FakeBackend, FakeClock
 
 
 class ScreenBackend(FakeBackend):
@@ -126,9 +126,8 @@ class SequenceTests(unittest.TestCase):
             lambda p: p['steps'][1].update(seconds=float('nan')),
             lambda p: p['steps'][1].update(unknown=True),
             lambda p: p['steps'][1].update(expect_after='missing'),
-            lambda p: p['steps'][-1].pop('expect_after'),
-            lambda p: p.update(max_seconds=31),
-            lambda p: p.update(steps=p['steps'] * 11),
+            lambda p: p.update(max_seconds=0),
+            lambda p: p.update(max_seconds=float('inf')),
             lambda p: p['checks']['open'].update(regions=[[0, 0, 1281, 649]]),
         ]
         for mutate in mutations:
@@ -189,7 +188,7 @@ class SequenceTests(unittest.TestCase):
         self.assertEqual(self.backend.events, [])
 
     def test_new_options_are_fully_validated_before_input(self):
-        for changes in [{'repeat': 2}, {'repeat': 17}, {'repeat': True}, {'watch': ['missing']},
+        for changes in [{'repeat': 0}, {'repeat': True}, {'watch': ['missing']},
                         {'watch': 'closed'}, {'progress': {'regions': [[0, 0, 1281, 1]], 'min_mean_error': 1}},
                         {'progress': {'regions': [[0, 0, 1, 1]], 'min_mean_error': 0}}]:
             raw = copy.deepcopy(self.raw)
@@ -207,13 +206,18 @@ class SequenceTests(unittest.TestCase):
         self.assertTrue(seq.match_frame(after, check)[0])
         after.paste((220, 220, 220), (7, 2, 10, 8))
         self.assertFalse(seq.match_frame(after, check)[0])
-    def test_repetitions_obey_expanded_count_and_total_time_limits(self):
-        for count in [16, 2]:
-            raw = copy.deepcopy(self.raw)
-            raw['steps'] = [{'keys': ['w'], 'repeat': count, 'seconds': 1,
-                             'expect_after': 'closed', 'progress': {'regions': [[0, 0, 1, 1]], 'min_mean_error': 1}}] * 3
-            with self.subTest(count=count), self.assertRaises(ValueError):
-                seq.prepare(raw, self.base)
+    def test_repetition_and_plan_length_are_not_fixed_capabilities(self):
+        raw = copy.deepcopy(self.raw)
+        raw['max_seconds'] = 80
+        raw['steps'] = [{'keys': ['w'], 'repeat': 17, 'seconds': 1,
+                         'dx': 10, 'expect_after': 'closed'}] * 3
+        plan = seq.prepare(raw, self.base)
+        self.assertEqual(len(plan['steps']), 51)
+        self.assertEqual(plan['planned_seconds'], 57.12)
+
+    def test_final_visual_check_is_optional(self):
+        self.raw['steps'][-1].pop('expect_after')
+        self.assertEqual(len(self.plan()['steps']), 3)
 
     def test_red_mask_ignores_background_but_detects_lost_heart_pixels(self):
         before = Image.new('RGB', (20, 20), (40, 90, 40))

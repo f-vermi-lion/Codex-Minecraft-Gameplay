@@ -20,6 +20,5 @@ builds/
 *.zip.sha256
 MANIFEST.sha256.json
 
-# Generated local Codex registration and ignore rules
-/.agents/
+# Generated local ignore rules
 /.gitignore

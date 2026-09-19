@@ -6,7 +6,7 @@ import math
 import unittest
 from unittest.mock import Mock, patch
 
-import minecraft_control as control
+import input_boundary as control
 
 
 class FakeClock:
