@@ -86,6 +86,15 @@ class SurvivalWatchTests(unittest.TestCase):
         with self.assertRaises(SurvivalAlert):
             SurvivalWatch(raw)
 
+    def test_background_flame_does_not_change_heart_measurement(self):
+        raw = FakeGame(screen())
+        draw = ImageDraw.Draw(raw.current)
+        draw.rectangle((590, 852, 929, 860), fill=(255, 50, 5))
+        draw.rectangle((920, 860, 929, 891), fill=(255, 50, 5))
+        game = SurvivalWatch(raw)
+        game.look(0, 100)
+        self.assertEqual(len(raw.events), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

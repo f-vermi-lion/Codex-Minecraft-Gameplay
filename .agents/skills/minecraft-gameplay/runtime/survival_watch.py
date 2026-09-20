@@ -17,12 +17,16 @@ def _pixels(image):
 
 
 def hud_red(frame):
-    """Fraction of red heart pixels in the observed HUD region."""
+    """Sample the two filled halves of each heart, excluding the background."""
     w, h = frame.size
-    crop = frame.convert('RGB').crop((
-        round(w * 590 / 1920), round(h * 852 / 1009),
-        round(w * 930 / 1920), round(h * 892 / 1009)))
-    pixels = _pixels(crop)
+    rgb = frame.convert('RGB')
+    pixels = []
+    for heart in range(10):
+        for offset in (8, 20):
+            left = 596 + 32 * heart + offset
+            crop = rgb.crop((round(w * left / 1920), round(h * 869 / 1009),
+                             round(w * (left + 4) / 1920), round(h * 873 / 1009)))
+            pixels.extend(_pixels(crop))
     return sum(r > 170 and g < 100 and b < 110 for r, g, b in pixels) / len(pixels)
 
 
