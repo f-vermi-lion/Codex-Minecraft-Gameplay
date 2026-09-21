@@ -88,7 +88,7 @@ Hold F8, change focus, or issue a persistent stop:
 
 A stop file alone does not identify a user interruption: a watchdog can also create it after a timeout. Inspect the report, selected target, foreground state, and a fresh screenshot before sending more gameplay input. An understood runtime timeout does not require new user permission; an intentional user stop does.
 
-The adapter checks window identity and focus, refuses conflicting physical key/button state, and uses a mutex to prevent overlapping actions. It releases inputs in cleanup and uses a separate watchdog as backup. Cleanup depends on Windows accepting the release events.
+The adapter checks window identity and focus, refuses conflicting physical key/button state, and uses a mutex to prevent separate input owners. It releases inputs in cleanup and uses a separate watchdog as backup. Cleanup depends on Windows accepting the release events. To capture or analyze images while holding input, use `hold_async` and observation methods on the same `Minecraft` session described in [runtime-api.md](runtime-api.md); a second CLI process cannot join that session.
 
 This fork also checks that the pointer is inside the selected game client and over that window (or a child) before pressing a mouse button and during held-button motion. A pointer outside the client, on the title bar, or over another window stops the action. Releases still run on abort. These checks reduce accidental clicks; Windows input remains global and checks are not an isolation boundary.
 

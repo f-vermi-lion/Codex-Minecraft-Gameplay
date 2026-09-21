@@ -69,6 +69,8 @@ with Minecraft(focus=True) as game:
 
 `hold` は長い論理操作を、低層の短い安全leaseへ自動分割します。総手数や総操作時間には固定上限を置きません。Python側で観察、条件分岐、ループ、画像処理を構成できます。詳しくは [runtime API](.agents/skills/minecraft-gameplay/references/runtime-api.md) を参照してください。
 
+同一セッション内の `with game.hold_async(...) as action:` では、キーやボタンを保持しながら `game.frame()` / `game.capture()` と画像解析を実行できます。入力は単一の所有者が管理し、スコープを抜けると未完了の保持を取り消して解放を待ちます。撮影・解析の待ち時間中も、停止・前面状態の検査と独立watchdogは動作します。
+
 単発診断には [controller CLI](.agents/skills/minecraft-gameplay/references/commands.md)、宣言的な画像チェックが役立つ場合には [sequence runner](.agents/skills/minecraft-gameplay/references/sequences.md) も使えます。
 
 ## 安全境界

@@ -23,6 +23,7 @@ with Minecraft(focus=True) as game:
 - `game.frame()`：ネイティブ解像度のPillow画像を返す。
 - `game.capture(path, max_width=...)`：画像を保存し、寸法とパスを返す。
 - `game.hold(keys=(), buttons=(), seconds=..., dx=0, dy=0)`：キー、ボタン、相対視点移動を組み合わせる。
+- `game.hold_async(keys=(), buttons=(), seconds=..., dx=0, dy=0)`：`with` 内で同じ保持を非同期に実行し、同一セッションの撮影・解析と並行させる。
 - `game.press(*keys, seconds=...)`：キーを短く押す。
 - `game.look(dx, dy, seconds=...)`：視点を相対移動する。
 - `game.click(x, y, button="left", seconds=...)`：現在のMinecraftクライアント内の座標をクリックする。
@@ -36,6 +37,41 @@ with Minecraft(focus=True) as game:
 Python側で自由にループや条件分岐を構成できます。連続操作の長さは、地形、戦闘、GUI、画面解析の確度に応じて決めます。正常な既知経路では長く、危険または不明な状態では短くし、想定外の画像や停止例外が出たら再観察します。
 
 画面状態を意味的に判定する処理はこの高層側へ置きます。`input_boundary.py` には、Minecraft外へ作用しないための機構だけを置きます。
+
+## 入力保持と観察の並行実行
+
+同一Minecraftセッション内の安全な非同期・並行動作は許可されています。`hold_async` は `with` に入ると入力用のワーカースレッドを起動し、呼び出し側を撮影・解析へ戻します。`frame()` と `capture()` は保持中にも使えます。画像を取得した後の解析は別スレッド等へ渡してもかまいません。複数の画面取得はAPI内で直列化されますが、入力の監視・解放はその待ち時間に依存しません。
+
+```python
+from minecraft import Minecraft
+from survival_watch import SurvivalWatch
+
+def main():
+    # 生存HUDが見え、事前に足場を確認した通路で実行する例。
+    with Minecraft() as raw:
+        try:
+            watch = SurvivalWatch(raw)
+            with raw.hold_async(keys=("w",), seconds=1.2) as movement:
+                while not movement.done():
+                    watch.frame()  # 保持中の撮影と体力・炎の画像解析
+                    raw.wait(.1)
+                movement.result()  # 入力側の失敗も呼び出し側へ伝える
+        finally:
+            # 非同期スコープの解放完了後に通常のポーズ入力を送る。
+            raw.press("esc")
+            raw.capture("captures/observed-movement-paused.png")
+
+if __name__ == "__main__":  # Windowsのwatchdog子プロセスから再実行しない
+    main()
+```
+
+- `action.done()` は完了の有無、`action.result(timeout=...)` は完了待ちと結果・例外の取得です。`action.cancel()` は次の境界検査で解放するよう要求します。明示キャンセル後の `result()` は `input_boundary.ActionCancelled` を送出します。
+- `with` の終了は、未完了の保持をキャンセルして入力ワーカーとwatchdogの終了を待ちます。正常に時間満了まで実行したい場合はスコープ内で `result()` を待ちます。解析の例外で抜けても解放され、撮影API自体の失敗も実行中の入力をキャンセルします。別スレッドへ渡した解析の例外は、その結果をスコープ内で受け取ってください。
+- 非同期スコープ内の追加の `hold`、`press`、`look`、`click`、`focus` は競合として拒否されます。入力を切り替えるときは現在のスコープを抜け、解放完了後に次を送ります。キーとボタン、視点移動を同時に使う場合は1つの `hold_async` の引数で組み合わせます。
+- `Minecraft` の外側のスコープも残った入力を停止してからmutexを返します。外側のスコープは開始したスレッドで閉じます。別の `Minecraft` インスタンスやCLIプロセスを並列の入力所有者にしません。
+- 保持は正の有限時間を指定します。長い保持は従来と同じ安全leaseに分割され、lease間には解放・再取得があります。撮影・解析の遅延を理由に保持を無期限に延長しません。F8、永続stop、前面・HWND/PID・ポインター検査と独立watchdogは保持中も有効です。
+
+取得画像は撮影時点の観察です。解析終了時点の状態と同じとは限らないため、次の判断には経過時間と新しい画面を考慮します。入力停止とゲーム内のポーズも別であり、コード編集や長い中断へ移る際は実画面でポーズを確認します。
 
 ## 採掘中の画面監視
 

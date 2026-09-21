@@ -3,6 +3,7 @@
 
 """Mock-only tests: importing/running this file never injects Windows input."""
 import math
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -331,6 +332,80 @@ class ActionTests(unittest.TestCase):
         self.assertIn(0.0, clock.sleeps)
         self.assertTrue(all(0 <= interval <= 0.01 for interval in clock.sleeps))
         self.assertEqual(backend.held, set())
+
+
+class CancellationTests(unittest.TestCase):
+    def test_cancelled_before_start_sends_no_input(self):
+        clock = FakeClock()
+        backend = FakeBackend(clock)
+        cancel = threading.Event()
+        cancel.set()
+        with self.assertRaises(control.ActionCancelled):
+            control.perform(backend, {'hwnd': 123, 'pid': 456}, ['w'], [], .5,
+                            clock=clock, cancel_event=cancel)
+        self.assertEqual(backend.events, [])
+        self.assertEqual(backend.preflight_calls, 0)
+
+    def test_cancel_during_hold_releases_inputs_and_clears_watchdog_ownership(self):
+        clock = FakeClock()
+        backend = FakeBackend(clock)
+        cancel = threading.Event()
+        ownership = TrackingOwnership(2)
+        original_sleep = clock.sleep
+        def cancel_after_tick(seconds):
+            original_sleep(seconds)
+            cancel.set()
+        clock.sleep = cancel_after_tick
+        with self.assertRaises(control.ActionCancelled):
+            control.perform(backend, {'hwnd': 123, 'pid': 456}, ['w'], ['left'], .5,
+                            clock=clock, ownership=ownership, cancel_event=cancel)
+        self.assertLessEqual(clock.now, .01)
+        self.assertEqual(backend.held, set())
+        self.assertEqual(ownership, [0, 0])
+
+
+class InputMutexTests(unittest.TestCase):
+    def setUp(self):
+        self.local_lock = threading.Lock()
+        lock_patch = patch.object(control, '_LOCAL_INPUT_LOCK', self.local_lock)
+        lock_patch.start()
+        self.addCleanup(lock_patch.stop)
+        self.backend = object.__new__(control.Windows)
+        self.backend.k = Mock()
+        self.backend.k.CreateMutexW.return_value = 42
+        self.backend.k.WaitForSingleObject.return_value = 0
+
+    def test_local_lock_refuses_a_recursive_session_on_same_thread(self):
+        handle = self.backend.lock()
+        try:
+            with self.assertRaisesRegex(control.ControlError, 'already running'):
+                self.backend.lock()
+            self.backend.k.CreateMutexW.assert_called_once()
+        finally:
+            self.backend.unlock(handle)
+        self.assertFalse(self.local_lock.locked())
+        self.backend.k.ReleaseMutex.assert_called_once_with(42)
+
+    def test_another_process_owner_keeps_this_session_from_starting(self):
+        self.backend.k.WaitForSingleObject.return_value = 0x102
+        with self.assertRaisesRegex(control.ControlError, 'already running'):
+            self.backend.lock()
+        self.assertFalse(self.local_lock.locked())
+        self.backend.k.CloseHandle.assert_called_once_with(42)
+        self.backend.k.ReleaseMutex.assert_not_called()
+
+    def test_failed_native_mutex_creation_releases_local_lock(self):
+        self.backend.k.CreateMutexW.return_value = 0
+        with self.assertRaisesRegex(control.ControlError, 'create adapter mutex'):
+            self.backend.lock()
+        self.assertFalse(self.local_lock.locked())
+
+    def test_abandoned_mutex_can_be_owned_and_released(self):
+        self.backend.k.WaitForSingleObject.return_value = 0x80
+        handle = self.backend.lock()
+        self.assertTrue(self.local_lock.locked())
+        self.backend.unlock(handle)
+        self.assertFalse(self.local_lock.locked())
 
 
 class WatchdogTests(unittest.TestCase):

@@ -11,12 +11,16 @@ import multiprocessing as MP
 import os
 from pathlib import Path
 import sys
+import threading
 import time
 
 ROOT = Path(__file__).resolve().parent
 STOP_FILE = ROOT / '.minecraft-control-stop'
 MAX_SECONDS = 5.0
 MAX_MOUSE_DELTA = 2000
+# Win32 mutexes are recursive on their owning thread. Also exclude a second
+# session in this process, even when both contexts are entered on that thread.
+_LOCAL_INPUT_LOCK = threading.Lock()
 # Physical PC scan codes; extended keys are marked separately.
 KEYS = {
     'w': (0x11, 0x57, False), 'a': (0x1e, 0x41, False),
@@ -40,6 +44,10 @@ BUTTONS = {'left': (0x0002, 0x0004, 0x01),
 
 class ControlError(RuntimeError):
     pass
+
+
+class ActionCancelled(ControlError):
+    """A session cancelled its own input; cleanup still runs normally."""
 
 
 class MOUSEINPUT(C.Structure):
@@ -286,17 +294,26 @@ class Windows:
         self.guard(target)
 
     def lock(self):
-        handle = self.k.CreateMutexW(None, False, 'Local\\CodexMinecraftControl')
-        if not handle:
-            raise ControlError('Unable to create adapter mutex.')
-        if self.k.WaitForSingleObject(handle, 0) not in (0, 0x80):
-            self.k.CloseHandle(handle)
+        if not _LOCAL_INPUT_LOCK.acquire(blocking=False):
             raise ControlError('Another adapter action is already running.')
-        return handle
+        try:
+            handle = self.k.CreateMutexW(None, False, 'Local\\CodexMinecraftControl')
+            if not handle:
+                raise ControlError('Unable to create adapter mutex.')
+            if self.k.WaitForSingleObject(handle, 0) not in (0, 0x80):
+                self.k.CloseHandle(handle)
+                raise ControlError('Another adapter action is already running.')
+            return handle
+        except BaseException:
+            _LOCAL_INPUT_LOCK.release()
+            raise
 
     def unlock(self, handle):
-        self.k.ReleaseMutex(handle)
-        self.k.CloseHandle(handle)
+        try:
+            self.k.ReleaseMutex(handle)
+            self.k.CloseHandle(handle)
+        finally:
+            _LOCAL_INPUT_LOCK.release()
 
     def frame(self, target):
         """Return a native client image for local checks without PNG encoding."""
@@ -321,21 +338,29 @@ class Windows:
         return {'path': str(path), 'source_size': list(original), 'image_size': list(frame.size)}
 
 
-def perform(backend, target, keys, buttons, seconds, dx=0, dy=0, clock=time, ownership=None):
+def perform(backend, target, keys, buttons, seconds, dx=0, dy=0, clock=time,
+            ownership=None, cancel_event=None):
     """One bounded action. Every acquired input is released even on abort."""
+    def guard():
+        if cancel_event is not None and cancel_event.is_set():
+            raise ActionCancelled('Input action cancelled.')
+        backend.guard(target)
+
     validate_action(keys, buttons, seconds, dx, dy)
+    if cancel_event is not None:
+        guard()
     backend.preflight(target, keys, buttons)
     held_keys, held_buttons = [], []
     start = clock.monotonic()
     try:
         for index, key in enumerate(keys):
-            backend.guard(target)
+            guard()
             held_keys.append(key)  # Include an attempted press if its result is uncertain.
             if ownership is not None:
                 ownership[index] = 1
             backend.key(key, True)
         for index, button in enumerate(buttons, len(keys)):
-            backend.guard(target)
+            guard()
             backend.guard_pointer(target)
             held_buttons.append(button)
             if ownership is not None:
@@ -343,15 +368,15 @@ def perform(backend, target, keys, buttons, seconds, dx=0, dy=0, clock=time, own
             backend.button(button, True)
         steps = max(1, math.ceil(seconds / 0.01))
         for i, (mx, my) in enumerate(motion_steps(dx, dy, steps), 1):
-            backend.guard(target)
+            guard()
             if buttons:
                 backend.guard_pointer(target)
             backend.move(mx, my)
             deadline = start + seconds * i / steps
             while clock.monotonic() < deadline:
-                backend.guard(target)
+                guard()
                 clock.sleep(max(0.0, min(0.01, deadline - clock.monotonic())))
-        backend.guard(target)
+        guard()
     finally:
         if ownership is None:
             errors = backend.release(held_keys, held_buttons)
