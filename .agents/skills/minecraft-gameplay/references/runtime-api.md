@@ -45,6 +45,7 @@ Python側で自由にループや条件分岐を構成できます。連続操�
 ```python
 from minecraft import Minecraft
 from survival_watch import SurvivalWatch
+from pause_guard import ensure_game_menu
 
 def main():
     # 生存HUDが見え、事前に足場を確認した通路で実行する例。
@@ -58,7 +59,7 @@ def main():
                 movement.result()  # 入力側の失敗も呼び出し側へ伝える
         finally:
             # 非同期スコープの解放完了後に通常のポーズ入力を送る。
-            raw.press("esc")
+            ensure_game_menu(raw)
             raw.capture("captures/observed-movement-paused.png")
 
 if __name__ == "__main__":  # Windowsのwatchdog子プロセスから再実行しない
@@ -73,6 +74,12 @@ if __name__ == "__main__":  # Windowsのwatchdog子プロセスから再実行�
 
 取得画像は撮影時点の観察です。解析終了時点の状態と同じとは限らないため、次の判断には経過時間と新しい画面を考慮します。入力停止とゲーム内のポーズも別であり、コード編集や長い中断へ移る際は実画面でポーズを確認します。
 
+## GUIと終了時のポーズ確認
+
+インベントリ中のEscはインベントリを閉じるため、Escを1回送ったことだけではポーズを確認できません。現在の日本語・1920×1009・GUIスケール4の画面では、`pause_guard.ensure_game_menu(raw)` がタイトル画像を照合し、必要なら最大3回Escを送り、実際のゲームメニューを確認します。既にゲームメニューなら入力しません。異なる表示設定や確認できない画面では例外を返すので、画像から状態を確認してください。
+
+この関数は非同期入力スコープを抜けた後、元の `Minecraft` インスタンスを使って呼びます。`SurvivalWatch` はインベントリやメニューで隠れたHUDを体力減少と誤認するため、GUIを開く操作から閉じ終わるまでは元のAPIを使い、生存HUDに戻ってから監視を再開してください。
+
 ## 採掘中の画面監視
 
 `runtime/survival_watch.py` の `SurvivalWatch` は、現在確認している1920×1009のHUD配置に基づき、探索操作の前後で体力表示の減少と炎らしい画面の覆いを検知します。採掘中に溶岩へ触れた場合、次の移動まで検査を遅らせないための補助です。地形の安全を保証するものではなく、GUIやHUD設定変更後には使えません。
@@ -80,6 +87,7 @@ if __name__ == "__main__":  # Windowsのwatchdog子プロセスから再実行�
 ```python
 from minecraft import Minecraft
 from survival_watch import SurvivalWatch
+from pause_guard import ensure_game_menu
 
 def main():
     with Minecraft() as raw:
@@ -88,7 +96,7 @@ def main():
             game.hold(buttons=('left',), seconds=.5)
             game.frame()
         finally:
-            raw.press('f3', 'esc')  # 監視例外時も元のAPIでポーズする
+            ensure_game_menu(raw)  # 監視例外時も元のAPIで実際のメニューを確認する
             raw.capture('captures/exploration-paused.png')
 
 if __name__ == '__main__':  # Windowsのwatchdog子プロセスから再実行させない
