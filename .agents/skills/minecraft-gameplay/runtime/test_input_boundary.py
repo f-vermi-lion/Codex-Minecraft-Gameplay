@@ -162,6 +162,26 @@ class ActionTests(unittest.TestCase):
                                   ('key', debug_key, False), ('key', 'f3', False)])
                 self.assertEqual(backend.held, set())
 
+    def test_profiler_parent_key_releases_and_clears_ownership(self):
+        self.assertEqual(control.KEYS['0'], (0x0b, 0x30, False))
+        for loss in (None, 0.035):
+            with self.subTest(lose_focus_at=loss):
+                clock = FakeClock()
+                backend = FakeBackend(clock, lose_focus_at=loss)
+                ownership = TrackingOwnership(1)
+                if loss is None:
+                    control.perform(backend, self.target, ['0'], [], 0.08,
+                                    clock=clock, ownership=ownership)
+                else:
+                    with self.assertRaisesRegex(control.ControlError, 'lost focus'):
+                        control.perform(backend, self.target, ['0'], [], 0.08,
+                                        clock=clock, ownership=ownership)
+                    self.assertLess(clock.now, 0.08)
+                self.assertEqual([e[1:] for e in backend.events if e[1] != 'move'],
+                                 [('key', '0', True), ('key', '0', False)])
+                self.assertEqual(backend.held, set())
+                self.assertEqual(list(ownership), [0])
+
     def test_focus_loss_aborts_early_and_releases_every_held_input(self):
         self.backend.lose_focus_at = 0.035
         with self.assertRaisesRegex(control.ControlError, 'lost focus'):
