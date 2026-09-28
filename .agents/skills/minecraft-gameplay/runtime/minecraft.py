@@ -320,6 +320,72 @@ class Minecraft:
         with self.hold_async(keys=keys, buttons=buttons, seconds=seconds, dx=dx, dy=dy) as action:
             return action.result()
 
+    def sequence_async(self, actions):
+        """Run up to five seconds of transitions under one scoped watchdog.
+
+        Each action uses the hold arguments and the unchanged input boundary.
+        Inputs are released between steps; there is no process startup at each
+        transition. Validation of the whole sequence precedes any input.
+        """
+        self._require_active()
+        steps = []
+        total = 0.0
+        for action in actions:
+            if not isinstance(action, dict) or set(action) - {'keys', 'buttons', 'seconds', 'dx', 'dy'}:
+                raise ValueError('Sequence actions must contain only hold arguments.')
+            keys, buttons = list(action.get('keys', ())), list(action.get('buttons', ()))
+            seconds = _positive_seconds(action.get('seconds', .1))
+            dx, dy = _integer_delta(action.get('dx', 0), 'dx'), _integer_delta(action.get('dy', 0), 'dy')
+            boundary.validate_action(keys, buttons, seconds, dx, dy)
+            total += seconds
+            if total > boundary.MAX_SECONDS + 1e-9:
+                raise ValueError('A sequence must total at most five seconds.')
+            steps.append((keys, buttons, seconds, dx, dy))
+        if not steps:
+            raise ValueError('A sequence must contain at least one action.')
+        return _InputAction(self, lambda cancel: self._run_sequence(steps, total, cancel))
+
+    def _run_sequence(self, steps, total, cancel_event):
+        keys = list(dict.fromkeys(key for step in steps for key in step[0]))
+        buttons = list(dict.fromkeys(button for step in steps for button in step[1]))
+        identities = [('key', key) for key in keys] + [('button', button) for button in buttons]
+        reader = writer = monitor = None
+        ownership = None
+        if self._use_watchdogs and identities:
+            context = MP.get_context('spawn')
+            reader, writer = context.Pipe(duplex=False)
+            ownership = context.RawArray('b', len(identities))
+            monitor = context.Process(target=boundary.watchdog,
+                                      args=(reader, keys, buttons, ownership, total + 2.0))
+            try:
+                monitor.start()
+            except BaseException:
+                reader.close()
+                writer.close()
+                raise
+            reader.close()
+        reports = []
+        try:
+            for step_keys, step_buttons, seconds, dx, dy in steps:
+                if cancel_event.is_set():
+                    raise boundary.ActionCancelled('Input action cancelled.')
+                indices = ([identities.index(('key', key)) for key in step_keys]
+                           + [identities.index(('button', button)) for button in step_buttons])
+                mapped = _OwnershipView(ownership, indices) if ownership is not None else None
+                reports.append(boundary.perform(
+                    self.backend, self.target, step_keys, step_buttons, seconds,
+                    dx, dy, self.clock, mapped, cancel_event=cancel_event))
+            return {'steps': reports, 'elapsed_seconds': round(sum(r['elapsed_seconds'] for r in reports), 4)}
+        finally:
+            if monitor is not None:
+                try:
+                    if not any(ownership):
+                        writer.send('released')
+                except (BrokenPipeError, EOFError, OSError):
+                    pass
+                writer.close()
+                monitor.join()
+
     def press(self, *keys, seconds=0.08):
         return self.hold(keys=keys, seconds=seconds)
 
@@ -340,6 +406,16 @@ class Minecraft:
         action.operation = point_and_hold
         with action:
             return action.result()
+
+
+class _OwnershipView:
+    """Map a step's ownership slots onto the sequence watchdog's shared array."""
+
+    def __init__(self, ownership, indices):
+        self.ownership, self.indices = ownership, indices
+
+    def __setitem__(self, index, value):
+        self.ownership[self.indices[index]] = value
 
 
 def stop():
