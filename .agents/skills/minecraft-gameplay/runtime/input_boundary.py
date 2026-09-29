@@ -213,11 +213,15 @@ class Windows:
     def down(self, vk):
         return bool(self.u.GetAsyncKeyState(vk) & 0x8000)
 
-    def preflight(self, target, keys, buttons):
+    def preflight(self, target, keys, buttons, *, owned_keys=(), owned_buttons=()):
         self.guard(target)
         # Existing modifiers could turn otherwise benign keys into OS shortcuts.
-        vks = [0x10, 0x11, 0x12, 0x5b, 0x5c]
-        vks += [KEYS[name][1] for name in keys] + [BUTTONS[name][2] for name in buttons]
+        # When this lease already holds a left modifier, still reject its
+        # independently pressed right counterpart and every unowned modifier.
+        vks = [0xa1 if 'shift' in owned_keys else 0x10,
+               0xa3 if 'ctrl' in owned_keys else 0x11, 0x12, 0x5b, 0x5c]
+        vks += [KEYS[name][1] for name in keys if name not in owned_keys]
+        vks += [BUTTONS[name][2] for name in buttons if name not in owned_buttons]
         if any(self.down(vk) for vk in vks):
             raise ControlError('Release physical keys/buttons before starting an action.')
 
@@ -391,6 +395,84 @@ def perform(backend, target, keys, buttons, seconds, dx=0, dy=0, clock=time,
             raise ControlError('Could not release every input: ' + '; '.join(errors))
     return {'elapsed_seconds': round(clock.monotonic() - start, 4),
             'keys': keys, 'buttons': buttons, 'mouse_delta': [dx, dy]}
+
+
+def perform_continuous_sequence(backend, target, actions, clock=time,
+                                ownership=None, cancel_event=None):
+    """One bounded lease retaining only inputs shared by adjacent steps.
+
+    Ownership uses the ordered union of the sequence's keys, then buttons,
+    matching its single watchdog. No owned input survives this call.
+    """
+    actions = [(list(keys), list(buttons), seconds, dx, dy)
+               for keys, buttons, seconds, dx, dy in actions]
+    for keys, buttons, seconds, dx, dy in actions:
+        validate_action(keys, buttons, seconds, dx, dy)
+    if not actions or sum(step[2] for step in actions) > MAX_SECONDS + 1e-9:
+        raise ValueError('A continuous sequence must total at most five seconds.')
+    all_keys = list(dict.fromkeys(key for step in actions for key in step[0]))
+    all_buttons = list(dict.fromkeys(button for step in actions for button in step[1]))
+    identities = [('key', key) for key in all_keys] + [('button', button) for button in all_buttons]
+    held_keys, held_buttons = [], []
+
+    def guard():
+        if cancel_event is not None and cancel_event.is_set():
+            raise ActionCancelled('Input action cancelled.')
+        backend.guard(target)
+        if held_buttons:
+            backend.guard_pointer(target)
+
+    def released(kind, name):
+        if ownership is not None:
+            ownership[identities.index((kind, name))] = 0
+        (held_keys if kind == 'key' else held_buttons).remove(name)
+
+    def release(keys, buttons):
+        if not keys and not buttons:
+            return
+        errors = backend.release(keys, buttons, on_released=released)
+        if errors:
+            raise ControlError('Could not release every input: ' + '; '.join(errors))
+
+    guard()
+    backend.preflight(target, all_keys, all_buttons)
+    reports = []
+    try:
+        for keys, buttons, seconds, dx, dy in actions:
+            guard()
+            release([key for key in held_keys if key not in keys],
+                    [button for button in held_buttons if button not in buttons])
+            guard()
+            backend.preflight(target, keys, buttons,
+                              owned_keys=tuple(held_keys), owned_buttons=tuple(held_buttons))
+            start = clock.monotonic()
+            for kind, names, held, send in (
+                    ('key', keys, held_keys, backend.key),
+                    ('button', buttons, held_buttons, backend.button)):
+                for name in names:
+                    if name in held:
+                        continue
+                    guard()
+                    if kind == 'button':
+                        backend.guard_pointer(target)
+                    held.append(name)  # An uncertain press must also be released.
+                    if ownership is not None:
+                        ownership[identities.index((kind, name))] = 1
+                    send(name, True)
+            count = max(1, math.ceil(seconds / .01))
+            for index, (mx, my) in enumerate(motion_steps(dx, dy, count), 1):
+                guard()
+                backend.move(mx, my)
+                deadline = start + seconds * index / count
+                while clock.monotonic() < deadline:
+                    guard()
+                    clock.sleep(max(0.0, min(.01, deadline - clock.monotonic())))
+            guard()
+            reports.append({'elapsed_seconds': round(clock.monotonic() - start, 4),
+                            'keys': keys, 'buttons': buttons, 'mouse_delta': [dx, dy]})
+    finally:
+        release(list(held_keys), list(held_buttons))
+    return {'steps': reports, 'elapsed_seconds': round(sum(r['elapsed_seconds'] for r in reports), 4)}
 
 
 def watchdog(reader, keys, buttons, ownership, timeout):

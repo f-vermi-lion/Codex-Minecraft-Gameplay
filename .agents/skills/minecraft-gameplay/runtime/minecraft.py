@@ -320,14 +320,17 @@ class Minecraft:
         with self.hold_async(keys=keys, buttons=buttons, seconds=seconds, dx=dx, dy=dy) as action:
             return action.result()
 
-    def sequence_async(self, actions):
+    def sequence_async(self, actions, *, preserve_inputs=False):
         """Run up to five seconds of transitions under one scoped watchdog.
 
         Each action uses the hold arguments and the unchanged input boundary.
-        Inputs are released between steps; there is no process startup at each
-        transition. Validation of the whole sequence precedes any input.
+        By default inputs are released between steps. preserve_inputs=True
+        retains shared inputs until a step omits them, with the same guards
+        and final release. Validation of the whole sequence precedes input.
         """
         self._require_active()
+        if not isinstance(preserve_inputs, bool):
+            raise ValueError('preserve_inputs must be a boolean.')
         steps = []
         total = 0.0
         for action in actions:
@@ -343,9 +346,9 @@ class Minecraft:
             steps.append((keys, buttons, seconds, dx, dy))
         if not steps:
             raise ValueError('A sequence must contain at least one action.')
-        return _InputAction(self, lambda cancel: self._run_sequence(steps, total, cancel))
+        return _InputAction(self, lambda cancel: self._run_sequence(steps, total, cancel, preserve_inputs))
 
-    def _run_sequence(self, steps, total, cancel_event):
+    def _run_sequence(self, steps, total, cancel_event, preserve_inputs=False):
         keys = list(dict.fromkeys(key for step in steps for key in step[0]))
         buttons = list(dict.fromkeys(button for step in steps for button in step[1]))
         identities = [('key', key) for key in keys] + [('button', button) for button in buttons]
@@ -366,6 +369,9 @@ class Minecraft:
             reader.close()
         reports = []
         try:
+            if preserve_inputs:
+                return boundary.perform_continuous_sequence(
+                    self.backend, self.target, steps, self.clock, ownership, cancel_event)
             for step_keys, step_buttons, seconds, dx, dy in steps:
                 if cancel_event.is_set():
                     raise boundary.ActionCancelled('Input action cancelled.')

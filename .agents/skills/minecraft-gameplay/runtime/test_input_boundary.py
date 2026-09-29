@@ -62,7 +62,7 @@ class FakeBackend:
         self.release_calls = []
         self.held = set()
 
-    def preflight(self, target, keys, buttons):
+    def preflight(self, target, keys, buttons, *, owned_keys=(), owned_buttons=()):
         self.preflight_calls += 1
         if self.reject_preflight:
             raise control.ControlError('Preflight rejected')
