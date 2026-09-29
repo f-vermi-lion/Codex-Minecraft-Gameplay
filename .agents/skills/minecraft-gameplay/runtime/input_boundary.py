@@ -3,6 +3,7 @@
 
 """Enforce the OS-input boundary around one foreground Minecraft game. Python 3.8+."""
 import argparse
+from collections import deque
 import ctypes as C
 from ctypes import wintypes as W
 import json
@@ -50,6 +51,23 @@ class ControlError(RuntimeError):
 
 class ActionCancelled(ControlError):
     """A session cancelled its own input; cleanup still runs normally."""
+
+
+class MouseSteering:
+    """Nonblocking latest-only mailbox; only the input worker consumes it."""
+
+    def __init__(self):
+        self._pending = deque(maxlen=1)
+
+    def submit(self, dx, dy):
+        validate_action([], [], .02, dx, dy)
+        self._pending.append((dx, dy))
+
+    def take(self):
+        try:
+            return self._pending.popleft()
+        except IndexError:
+            return 0, 0
 
 
 class MOUSEINPUT(C.Structure):
@@ -398,7 +416,7 @@ def perform(backend, target, keys, buttons, seconds, dx=0, dy=0, clock=time,
 
 
 def perform_continuous_sequence(backend, target, actions, clock=time,
-                                ownership=None, cancel_event=None):
+                                ownership=None, cancel_event=None, steering=None):
     """One bounded lease retaining only inputs shared by adjacent steps.
 
     Ownership uses the ordered union of the sequence's keys, then buttons,
@@ -408,12 +426,16 @@ def perform_continuous_sequence(backend, target, actions, clock=time,
                for keys, buttons, seconds, dx, dy in actions]
     for keys, buttons, seconds, dx, dy in actions:
         validate_action(keys, buttons, seconds, dx, dy)
+    if steering is not None and not isinstance(steering, MouseSteering):
+        raise ValueError('steering must be a MouseSteering mailbox.')
     if not actions or sum(step[2] for step in actions) > MAX_SECONDS + 1e-9:
         raise ValueError('A continuous sequence must total at most five seconds.')
     all_keys = list(dict.fromkeys(key for step in actions for key in step[0]))
     all_buttons = list(dict.fromkeys(button for step in actions for button in step[1]))
     identities = [('key', key) for key in all_keys] + [('button', button) for button in all_buttons]
     held_keys, held_buttons = [], []
+    steering_total = [0, 0]
+    steering_budget = [0, 0]
 
     def guard():
         if cancel_event is not None and cancel_event.is_set():
@@ -462,6 +484,18 @@ def perform_continuous_sequence(backend, target, actions, clock=time,
             count = max(1, math.ceil(seconds / .01))
             for index, (mx, my) in enumerate(motion_steps(dx, dy, count), 1):
                 guard()
+                if steering is not None:
+                    sx, sy = steering.take()
+                    validate_action([], [], .02, sx, sy)
+                    for axis, delta in enumerate((sx, sy)):
+                        steering_budget[axis] += abs(delta)
+                        if steering_budget[axis] > MAX_MOUSE_DELTA:
+                            raise ControlError('Mouse steering budget exceeded for this lease.')
+                        steering_total[axis] += delta
+                    # Recheck after receiving a command, before native input.
+                    guard()
+                    mx, my = mx + sx, my + sy
+                    validate_action([], [], .02, mx, my)
                 backend.move(mx, my)
                 deadline = start + seconds * index / count
                 while clock.monotonic() < deadline:
@@ -472,7 +506,10 @@ def perform_continuous_sequence(backend, target, actions, clock=time,
                             'keys': keys, 'buttons': buttons, 'mouse_delta': [dx, dy]})
     finally:
         release(list(held_keys), list(held_buttons))
-    return {'steps': reports, 'elapsed_seconds': round(sum(r['elapsed_seconds'] for r in reports), 4)}
+    result = {'steps': reports, 'elapsed_seconds': round(sum(r['elapsed_seconds'] for r in reports), 4)}
+    if steering is not None:
+        result['steering_delta'] = steering_total
+    return result
 
 
 def watchdog(reader, keys, buttons, ownership, timeout):
