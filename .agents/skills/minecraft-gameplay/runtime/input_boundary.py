@@ -18,6 +18,7 @@ import time
 ROOT = Path(__file__).resolve().parent
 STOP_FILE = ROOT / '.minecraft-control-stop'
 MAX_SECONDS = 5.0
+MAX_MINING_SECONDS = 45.0
 MAX_MOUSE_DELTA = 2000
 # Win32 mutexes are recursive on their owning thread. Also exclude a second
 # session in this process, even when both contexts are entered on that thread.
@@ -94,8 +95,10 @@ class INPUT(C.Structure):
 
 
 def validate_action(keys, buttons, seconds, dx, dy):
-    if not math.isfinite(seconds) or not 0.02 <= seconds <= MAX_SECONDS:
-        raise ValueError('Duration must be between 0.02 and 5 seconds.')
+    stationary_mining = not keys and list(buttons) == ['left'] and dx == 0 and dy == 0
+    limit = MAX_MINING_SECONDS if stationary_mining else MAX_SECONDS
+    if not math.isfinite(seconds) or not 0.02 <= seconds <= limit:
+        raise ValueError('Duration must be between 0.02 and %g seconds.' % limit)
     if len(set(keys)) != len(keys) or any(k not in KEYS for k in keys):
         raise ValueError('Keys must be unique supported names: ' + ', '.join(KEYS))
     if len(set(buttons)) != len(buttons) or any(b not in BUTTONS for b in buttons):

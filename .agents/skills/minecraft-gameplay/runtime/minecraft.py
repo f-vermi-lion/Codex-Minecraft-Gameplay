@@ -318,6 +318,19 @@ class Minecraft:
             boundary.validate_action(keys, buttons, duration, x_part, y_part)
         return _InputAction(self, lambda cancel: self._hold_plan(keys, buttons, dx, dy, plan, cancel))
 
+    def mine_async(self, seconds):
+        """Hold only left-click continuously, for at most 45 seconds.
+
+        Use after observing a stationary mining target. The normal exclusive
+        input owner, pointer/target guards, cancellation, and watchdog apply.
+        The caller must monitor the target and cancel when it changes.
+        """
+        self._require_active()
+        seconds = _positive_seconds(seconds)
+        boundary.validate_action([], ['left'], seconds, 0, 0)
+        return _InputAction(
+            self, lambda cancel: self._run_chunk([], ['left'], seconds, 0, 0, cancel))
+
     def _hold_plan(self, keys, buttons, dx, dy, plan, cancel_event):
         reports = []
         for duration, x_part, y_part in plan:

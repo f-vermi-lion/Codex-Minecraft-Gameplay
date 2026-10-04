@@ -24,6 +24,7 @@ with Minecraft(focus=True) as game:
 - `game.capture(path, max_width=...)`：画像を保存し、寸法とパスを返す。
 - `game.hold(keys=(), buttons=(), seconds=..., dx=0, dy=0)`：キー、ボタン、相対視点移動を組み合わせる。
 - `game.hold_async(keys=(), buttons=(), seconds=..., dx=0, dy=0)`：`with` 内で同じ保持を非同期に実行し、同一セッションの撮影・解析と並行させる。
+- `game.mine_async(seconds)`：移動せず左ボタンだけを最大45秒連続保持する採掘用スコープ。素手や空中での遅い採掘が通常の5秒lease境界でやり直しになる場合に使う。対象ブロックとHUDを監視し、掘れたらcancelする。通常の入力所有者、ウィンドウ・ポインター確認、F8、停止、例外時解放、独立watchdogを保つ。通常のholdとsequenceの分割・上限は変わらない。
 - `game.sequence_async(actions, preserve_inputs=False)`：合計5秒以内の短い操作列を1つのwatchdogで監視する。各要素は `hold` と同じ引数の辞書。通常は操作間で入力を解放する。`preserve_inputs=True` を指定すると、隣接する操作に共通するキー・ボタンは保持し、その操作から外れた入力だけを解放する。プロセスの起動・終了待ちは列の前後だけ。
 - `game.press(*keys, seconds=...)`：キーを短く押す。
 - `game.look(dx, dy, seconds=...)`：視点を相対移動する。
