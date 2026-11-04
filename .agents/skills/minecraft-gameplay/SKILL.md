@@ -4,6 +4,11 @@ description: Windows上のMinecraftを画面から観察し、安全境界付き
 license: Apache-2.0
 ---
 
+<!--
+Added or modified for the f-vermi-lion Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+-->
+
 # Minecraft gameplay
 
 現在の画面から状態を判断し、ユーザーのゲーム内目標が達成されるまで自律的に進める。過去の記録や計画より新しい観察を優先する。

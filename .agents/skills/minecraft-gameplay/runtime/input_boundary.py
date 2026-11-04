@@ -1,4 +1,6 @@
 # Copyright 2026 Wuyang Zhou and Tianyu Wei
+# Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+# Added or modified for the Minecraft/Astra gameplay fork in 2026 (AI-assisted).
 # SPDX-License-Identifier: Apache-2.0
 
 """Enforce the OS-input boundary around one foreground Minecraft game. Python 3.8+."""

@@ -1,3 +1,8 @@
+<!--
+Added or modified for the f-vermi-lion Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+-->
+
 # Code-execution runtime API
 
 `runtime/minecraft.py` は、PythonコードからMinecraftを観察・操作する主APIです。低層の `input_boundary.py` が、送信のたびに対象ウィンドウ、プロセス、前面状態、停止状態、ポインター位置を検査します。

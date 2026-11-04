@@ -1,3 +1,8 @@
+<!--
+Added or modified for the f-vermi-lion Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+-->
+
 # Low-level controller command reference
 
 通常は [runtime-api.md](runtime-api.md) のコード実行APIを使う。このCLIは単発操作、診断、互換用途のために残している。

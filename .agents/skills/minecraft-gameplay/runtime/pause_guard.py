@@ -1,3 +1,7 @@
+# Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+# Added or modified for the Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+# SPDX-License-Identifier: Apache-2.0
+
 """Confirm the observed Japanese Game Menu before leaving gameplay unattended.
 
 The template is the title from the 1920 x 1009, GUI-scale-4 game window.

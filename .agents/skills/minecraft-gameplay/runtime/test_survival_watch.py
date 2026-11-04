@@ -1,3 +1,7 @@
+# Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+# Added or modified for the Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+# SPDX-License-Identifier: Apache-2.0
+
 """Exploration alerts use synthetic screenshots and a fake game, never Win32."""
 import unittest
 from contextlib import contextmanager

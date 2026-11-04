@@ -1,3 +1,7 @@
+# Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+# Added or modified for the Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+# SPDX-License-Identifier: Apache-2.0
+
 """Optional screenshot-based monitoring for exploration, above the input boundary.
 
 The HUD regions match the currently observed 1920 x 1009 gameplay layout.

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+# Added or modified for the Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+# SPDX-License-Identifier: Apache-2.0
+
 """Compatibility CLI for the renamed Minecraft input boundary."""
 import json
 import multiprocessing as MP

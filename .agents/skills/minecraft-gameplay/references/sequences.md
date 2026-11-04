@@ -1,3 +1,8 @@
+<!--
+Added or modified for the f-vermi-lion Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+-->
+
 # Optional checked action sequences
 
 The sequence runner validates a JSON plan, loads its reference images, and executes inputs with local visual comparisons. Use it when a declarative, reproducible checkpoint plan is more useful than the main code-execution API. References must match the native game-client dimensions and UI layout.

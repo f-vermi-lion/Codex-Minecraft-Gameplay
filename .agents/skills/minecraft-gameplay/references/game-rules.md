@@ -1,3 +1,8 @@
+<!--
+Added or modified for the f-vermi-lion Minecraft/Astra gameplay fork in 2026 (AI-assisted).
+Copyright (c) 2026 f-vermi-lion (copyrightable contributions only).
+-->
+
 # ゲームルール
 
 目標は、Minecraftの通常プレイによってエンダードラゴンを討伐することです。
